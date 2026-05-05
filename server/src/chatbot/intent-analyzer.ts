@@ -1,4 +1,4 @@
-import { callGlobantLLM } from './llm-service.js';
+import { callOpenAILLM } from './llm-service.js';
 import { RESOURCE_SCHEMAS, type IntentAnalysisResult } from './types.js';
 import { AWS_RESOURCE_TYPES, type AwsResourceType } from '../aws/resource-registry.js';
 
@@ -36,7 +36,7 @@ Respond ONLY with a valid JSON object in this format:
 If the question asks about unavailable data, set "isAnswerable" to false and list "unavailableFields".`;
 
   try {
-    const result = await callGlobantLLM(systemPrompt, userMessage, "openai/gpt-5.4", true);
+    const result = await callOpenAILLM(systemPrompt, userMessage, 'gpt-5.4', true);
     
     if (!result) {
       // Fallback to default

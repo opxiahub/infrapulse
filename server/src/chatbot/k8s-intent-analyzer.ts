@@ -1,4 +1,4 @@
-import { callGlobantLLM } from './llm-service.js';
+import { callOpenAILLM } from './llm-service.js';
 import { K8S_RESOURCE_SCHEMAS, K8S_RESOURCE_TYPES, type K8sIntentAnalysisResult, type K8sResourceType } from './k8s-types.js';
 
 export async function analyzeK8sIntent(userMessage: string): Promise<K8sIntentAnalysisResult> {
@@ -40,7 +40,7 @@ Respond ONLY with a valid JSON object in this format:
 }`;
 
   try {
-    const result = await callGlobantLLM(systemPrompt, userMessage, 'openai/gpt-5.4', true);
+    const result = await callOpenAILLM(systemPrompt, userMessage, 'gpt-5.4', true);
     if (!result) {
       return {
         resourceTypes: [],

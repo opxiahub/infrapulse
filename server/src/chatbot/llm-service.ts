@@ -1,76 +1,76 @@
 import axios from 'axios';
 
-export async function callGlobantLLM(
+const OPENAI_CHAT_COMPLETIONS_URL = 'https://api.openai.com/v1/chat/completions';
+const FALLBACK_OPENAI_MODEL = 'gpt-5.4';
+
+function parseJsonContent(content: string): any {
+  try {
+    const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+    if (jsonMatch && jsonMatch[1]) {
+      return JSON.parse(jsonMatch[1]);
+    }
+
+    return JSON.parse(content);
+  } catch (parseError) {
+    console.error('Error parsing LLM response as JSON:', parseError);
+    console.error('Content causing the issue:', content.substring(0, 200));
+    return null;
+  }
+}
+
+export async function callOpenAILLM(
   system: string,
   user: string,
-  modelName = "openai/gpt-5.4",
+  modelName = process.env.OPENAI_MODEL || FALLBACK_OPENAI_MODEL,
   expectJson = false
 ): Promise<any> {
   try {
-    // API endpoint for Globant's internal LLM service
-    const endpoint = "https://api.clients.geai.globant.com/chat";
-    
-    // Prepare the request payload
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY is not configured');
+    }
+
+    const model = modelName.replace(/^openai\//, '') || process.env.OPENAI_MODEL || FALLBACK_OPENAI_MODEL;
     const payload = {
-      model: modelName,
+      model,
       messages: [
         {
-          role: "system",
-          content: system
+          role: 'developer',
+          content: system,
         },
         {
-          role: "user",
-          content: user
-        }
+          role: 'user',
+          content: user,
+        },
       ],
-      stream: false
+      stream: false,
+      store: false,
+      ...(expectJson ? { response_format: { type: 'json_object' } } : {}),
     };
-    
-    // Headers for the request
+
     const headers = {
-      'Authorization': `Bearer ${process.env.GLOBANT_API_KEY}`,
-      'X-Saia-Cache-Enabled': 'false',
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
     };
-    
-    console.log(`Making API call to Globant SAIA with model: ${modelName}`);
-    
-    // Make the API call
-    const response = await axios.post(endpoint, payload, { headers });
-    
-    // Extract the content from the response
-    if (response.data && response.data.choices && response.data.choices.length > 0) {
-      const content = response.data.choices[0].message.content;
-      
-      // If we expect JSON, try to parse it, handling potential Markdown formatting
-      if (expectJson) {
-        try {
-          // Check if the response is wrapped in a code block (```json ... ```)
-          const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-          if (jsonMatch && jsonMatch[1]) {
-            // Extract just the JSON part
-            return JSON.parse(jsonMatch[1]);
-          }
-          
-          // Try direct parsing if no code block is detected
-          return JSON.parse(content);
-        } catch (parseError) {
-          console.error('Error parsing LLM response as JSON:', parseError);
-          // For better debugging, log a snippet of the content that's causing issues
-          console.error('Content causing the issue:', content.substring(0, 200));
-          // Return null for JSON parsing failures
-          return null;
-        }
-      }
-      
-      // Return the raw content if we don't need JSON
-      return content;
-    } else {
-      console.warn('Unexpected response format from Globant SAIA API:', response.data);
+
+    console.log(`Making API call to OpenAI with model: ${model}`);
+
+    const response = await axios.post(OPENAI_CHAT_COMPLETIONS_URL, payload, { headers });
+    const content = response.data?.choices?.[0]?.message?.content;
+
+    if (typeof content !== 'string') {
+      console.warn('Unexpected response format from OpenAI API:', response.data);
       throw new Error('Unexpected response format from LLM API');
     }
+
+    if (expectJson) {
+      return parseJsonContent(content);
+    }
+
+    return content;
   } catch (error: any) {
-    console.error('Error calling Globant SAIA API:', error.message);
-    throw new Error(`Failed to get LLM response: ${error.message}`);
+    const message = error.response?.data?.error?.message || error.message;
+    console.error('Error calling OpenAI API:', message);
+    throw new Error(`Failed to get LLM response: ${message}`);
   }
 }

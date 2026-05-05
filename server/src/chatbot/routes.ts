@@ -5,7 +5,7 @@ import type { User } from '../auth/passport.js';
 import type { ChatRequest, ChatResponse } from './types.js';
 import { analyzeIntent } from './intent-analyzer.js';
 import { buildContext } from './context-builder.js';
-import { callGlobantLLM } from './llm-service.js';
+import { callOpenAILLM } from './llm-service.js';
 import type { GraphData } from '../aws/types.js';
 import { analyzeK8sIntent } from './k8s-intent-analyzer.js';
 import { buildK8sContext } from './k8s-context-builder.js';
@@ -145,7 +145,7 @@ Cluster context: ${cluster.label}
 Cluster type: ${String(cluster.cluster_type).toUpperCase()}
 Namespace context: ${namespace}`;
 
-      llmResponse = await callGlobantLLM(systemPrompt, message, 'openai/gpt-5.4', false);
+      llmResponse = await callOpenAILLM(systemPrompt, message, 'gpt-5.4', false);
     } else {
       if (!providerId) {
         return res.status(400).json({ error: 'providerId is required for cloud chat' });
@@ -216,10 +216,10 @@ Guidelines:
 
 Provider context: ${provider.label} in ${provider.region}`;
 
-      llmResponse = await callGlobantLLM(
+      llmResponse = await callOpenAILLM(
         systemPrompt,
         message,
-        'openai/gpt-5.4',
+        'gpt-5.4',
         false
       );
     }

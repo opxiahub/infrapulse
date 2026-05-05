@@ -75,7 +75,7 @@ InfraPulse is a full-stack infrastructure visibility application for connecting 
 - Backend: Node.js, Express, TypeScript, Passport.js, Socket.IO
 - Cloud SDKs: AWS SDK v3, Kubernetes client
 - Database: SQLite with SQL migrations
-- AI integration: Globant SAIA chat API
+- AI integration: OpenAI API
 
 ## Prerequisites
 
@@ -86,7 +86,7 @@ InfraPulse is a full-stack infrastructure visibility application for connecting 
 - Azure service principal credentials with Reader access to the target subscription or resource group
 - Kubernetes API server URL and bearer token for direct ROSA-style cluster connections
 - Optional: Google OAuth credentials for Google login
-- Optional: Globant SAIA API key for AI chat
+- Optional: OpenAI API key for AI chat
 
 Node 22 is recommended for local development.
 
@@ -118,7 +118,8 @@ GOOGLE_CLIENT_SECRET=
 GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 
 # Optional AI chat
-GLOBANT_API_KEY=
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.4
 ```
 
 Start the backend and frontend:
