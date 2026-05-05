@@ -41,8 +41,8 @@ export function LogViewer({ clusterId, namespace, podName, containerName, onClos
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-4xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="card w-full max-w-4xl h-[86dvh] sm:h-auto sm:max-h-[90vh] flex flex-col rounded-b-none sm:rounded-b-lg">
         <div className="flex items-center justify-between mb-3 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Terminal className="w-4 h-4 text-neon-green" />

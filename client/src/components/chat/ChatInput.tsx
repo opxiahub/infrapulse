@@ -24,7 +24,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-surface-600 p-3 bg-surface-900">
+    <div className="border-t border-surface-600 p-3 bg-surface-900 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
       <div className="flex gap-2">
         <textarea
           value={message}
@@ -32,11 +32,11 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           onKeyPress={handleKeyPress}
           placeholder="Ask about your infrastructure..."
           disabled={disabled}
-          className="flex-1 input-field resize-none min-h-[40px] max-h-[120px] text-sm"
+          className="flex-1 input-field resize-none min-h-[44px] max-h-[120px] text-sm"
           rows={1}
           style={{
             height: 'auto',
-            minHeight: '40px'
+            minHeight: '44px'
           }}
           onInput={(e) => {
             const target = e.target as HTMLTextAreaElement;
@@ -47,13 +47,13 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         <button
           onClick={handleSend}
           disabled={disabled || !message.trim()}
-          className="btn-primary px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-primary min-h-11 px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           title="Send message (Enter)"
         >
           <Send className="w-4 h-4" />
         </button>
       </div>
-      <div className="text-[10px] text-gray-600 mt-1.5">
+      <div className="hidden sm:block text-[10px] text-gray-600 mt-1.5">
         Press Enter to send, Shift+Enter for new line
       </div>
     </div>

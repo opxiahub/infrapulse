@@ -57,10 +57,10 @@ export function ResourceTypeSelector({ selected, onChange, cloud = 'aws' }: Prop
   const clearAll = () => onChange([]);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative w-full sm:w-auto">
       <button
         onClick={() => setOpen(!open)}
-        className="input-field flex items-center gap-2 w-auto pr-8 text-xs cursor-pointer"
+        className="input-field min-h-11 sm:min-h-0 flex items-center gap-2 w-full sm:w-auto pr-8 text-xs cursor-pointer"
       >
         <span className="text-gray-300">Resources</span>
         <span className="px-1.5 py-0.5 bg-neon-green/15 text-neon-green rounded text-[10px] font-medium">
@@ -70,7 +70,7 @@ export function ResourceTypeSelector({ selected, onChange, cloud = 'aws' }: Prop
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-72 bg-surface-800 border border-surface-600 rounded-lg shadow-lg z-50 max-h-[70vh] overflow-y-auto">
+        <div className="absolute top-full left-0 mt-1 w-[min(18rem,calc(100vw-1.5rem))] bg-surface-800 border border-surface-600 rounded-lg shadow-lg z-50 max-h-[70vh] overflow-y-auto overscroll-contain">
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-surface-600 sticky top-0 bg-surface-800 z-10">
             <span className="text-xs text-gray-400">
@@ -95,7 +95,7 @@ export function ResourceTypeSelector({ selected, onChange, cloud = 'aws' }: Prop
                 {/* Group header */}
                 <button
                   onClick={() => toggleGroup(group)}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-surface-700 transition-colors"
+                  className="w-full min-h-10 flex items-center gap-2 px-3 py-1.5 hover:bg-surface-700 transition-colors"
                 >
                   <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${
                     allSelected ? 'bg-neon-green border-neon-green' : someSelected ? 'bg-surface-600 border-neon-green/50' : 'border-surface-500'
@@ -115,13 +115,13 @@ export function ResourceTypeSelector({ selected, onChange, cloud = 'aws' }: Prop
                     return (
                       <label
                         key={r.type}
-                        className="flex items-center gap-2 px-3 py-1 hover:bg-surface-700 cursor-pointer transition-colors"
+                        className="min-h-10 flex items-center gap-2 px-3 py-1 hover:bg-surface-700 cursor-pointer transition-colors"
                       >
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleType(r.type)}
-                          className="accent-neon-green w-3 h-3"
+                          className="accent-neon-green w-4 h-4 sm:w-3 sm:h-3"
                         />
                         <Icon className={`w-3 h-3 ${r.iconColor}`} />
                         <span className={`text-xs ${isSelected ? 'text-gray-200' : 'text-gray-500'}`}>

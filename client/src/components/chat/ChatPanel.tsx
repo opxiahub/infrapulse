@@ -128,19 +128,19 @@ export function ChatPanel({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 w-[420px] h-[600px] bg-surface-900 border border-surface-600 rounded-lg shadow-2xl flex flex-col z-50">
+    <div className="fixed inset-x-0 bottom-0 h-[82dvh] bg-surface-900 border-t border-surface-600 rounded-t-lg shadow-2xl flex flex-col z-50 sm:inset-auto sm:bottom-4 sm:right-4 sm:w-[420px] sm:h-[600px] sm:border sm:rounded-lg">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-surface-600 bg-surface-800">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-neon-green" />
-          <div>
+      <div className="flex items-center justify-between gap-3 p-4 border-b border-surface-600 bg-surface-800 rounded-t-lg sm:rounded-t-lg">
+        <div className="flex items-center gap-2 min-w-0">
+          <MessageSquare className="w-5 h-5 text-neon-green shrink-0" />
+          <div className="min-w-0">
             <h3 className="font-semibold text-sm text-gray-100">Infrastructure Assistant</h3>
-            <p className="text-[10px] text-gray-500">{sourceLabel} • {sourceSubtitle}</p>
+            <p className="text-[10px] text-gray-500 truncate">{sourceLabel} • {sourceSubtitle}</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-200 transition-colors"
+          className="h-10 w-10 rounded border border-surface-600 bg-surface-900 flex items-center justify-center text-gray-400 hover:text-gray-200 transition-colors shrink-0"
           title="Close chat"
         >
           <X className="w-5 h-5" />
@@ -148,7 +148,7 @@ export function ChatPanel({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 overscroll-contain">
         {messages.map((msg, idx) => (
           <ChatMessage
             key={idx}

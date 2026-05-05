@@ -22,7 +22,7 @@ export function ChatMessage({ role, content, timestamp }: ChatMessageProps) {
       </div>
 
       <div className={`flex-1 ${isUser ? 'text-right' : 'text-left'}`}>
-        <div className={`inline-block max-w-[85%] rounded-lg px-4 py-2.5 ${
+        <div className={`inline-block max-w-[88%] sm:max-w-[85%] rounded-lg px-3 sm:px-4 py-2.5 ${
           isUser 
             ? 'bg-neon-blue/10 text-gray-100 border border-neon-blue/30' 
             : 'bg-surface-800 text-gray-200 border border-surface-600'

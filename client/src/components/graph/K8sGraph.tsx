@@ -232,8 +232,8 @@ function K8sGraphInner({ graphData, searchQuery }: Props) {
   const onPaneClick = useCallback(() => setSelectedNode(null), []);
 
   return (
-    <div className="flex h-full">
-      <div className="flex-1">
+    <div className="relative flex h-full min-w-0">
+      <div className="flex-1 min-w-0">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -248,10 +248,12 @@ function K8sGraphInner({ graphData, searchQuery }: Props) {
           proOptions={{ hideAttribution: true }}
           minZoom={0.05}
           maxZoom={2}
+          panOnScroll
         >
           <Background color="#1a1a25" gap={20} size={1} />
           <Controls />
           <MiniMap
+            className="hidden sm:block"
             nodeColor={(node: Node) => {
               if (node.type === 'resourceGroup') return 'transparent';
               const config = getK8sResourceConfig(node.type || '');
@@ -262,10 +264,18 @@ function K8sGraphInner({ graphData, searchQuery }: Props) {
         </ReactFlow>
       </div>
       {selectedNode && (
+        <>
+          <button
+            type="button"
+            aria-label="Close Kubernetes resource details"
+            onClick={() => setSelectedNode(null)}
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          />
         <K8sNodeDetailPanel
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
         />
+        </>
       )}
     </div>
   );

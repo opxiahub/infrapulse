@@ -42,7 +42,7 @@ export function ProviderList({ providers, onRefresh }: Props) {
         const badgeColor = isAzure ? 'text-blue-400' : isGcp ? 'text-neon-blue' : 'text-yellow-500';
         const badgeLabel = isAzure ? 'AZURE' : isGcp ? 'GCP' : 'AWS';
         return (
-          <div key={p.id} className="card flex items-center justify-between gap-3">
+          <div key={p.id} className="card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded bg-surface-700 flex items-center justify-center shrink-0">
                 <span className={`${isAzure ? 'text-xs' : 'text-lg'} font-bold ${badgeColor}`}>
@@ -55,7 +55,7 @@ export function ProviderList({ providers, onRefresh }: Props) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto">
               {/* Credential type badge — AWS only (GCP/Azure use long-lived app credentials) */}
               {!isGcp && !isAzure && (
                 <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border ${
@@ -82,7 +82,8 @@ export function ProviderList({ providers, onRefresh }: Props) {
 
               <button
                 onClick={() => handleDelete(p.id)}
-                className="text-gray-500 hover:text-neon-red transition-colors"
+                className="h-10 w-10 -mr-2 sm:mr-0 rounded flex items-center justify-center text-gray-500 hover:text-neon-red transition-colors"
+                aria-label={`Remove ${p.label}`}
               >
                 <Trash2 className="w-4 h-4" />
               </button>

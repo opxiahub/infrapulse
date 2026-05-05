@@ -112,7 +112,7 @@ export function K8sNodeDetailPanel({ node, onClose }: Props) {
 
   return (
     <>
-      <div className="w-80 bg-surface-900 border-l border-surface-600 h-full overflow-auto">
+      <div className="fixed inset-x-0 bottom-0 z-50 max-h-[78dvh] rounded-t-lg border-t border-surface-600 bg-surface-900 overflow-auto md:static md:z-auto md:h-full md:max-h-none md:w-80 md:rounded-none md:border-t-0 md:border-l md:border-surface-600">
         <div className="p-4 border-b border-surface-600 flex items-center justify-between sticky top-0 bg-surface-900 z-10">
           <div className="flex items-center gap-2">
             <Icon className={`w-5 h-5 ${iconColor}`} />

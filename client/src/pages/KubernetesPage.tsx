@@ -35,9 +35,9 @@ export function KubernetesPage() {
   ];
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
+    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-gray-100">Kubernetes</h1>
           <p className="text-sm text-gray-500">Connect and manage Kubernetes clusters</p>
         </div>
@@ -46,14 +46,14 @@ export function KubernetesPage() {
             setModalClusterType('rosa');
             setShowModal(true);
           }}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary min-h-11 sm:min-h-0 flex items-center justify-center gap-2"
         >
           <Plus className="w-4 h-4" /> Add Cluster
         </button>
       </div>
 
       {/* Distribution cards */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
         {distros.map(d => (
           d.active ? (
             <button

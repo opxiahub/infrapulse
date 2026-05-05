@@ -146,8 +146,8 @@ export function DashboardPage() {
   const hasAnySources = providers.length > 0 || k8sClusters.length > 0;
   if (!hasAnySources) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500">
-        <div className="text-center">
+      <div className="flex items-center justify-center h-full p-4 text-gray-500">
+        <div className="text-center max-w-sm">
           <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p>No sources connected.</p>
           <p className="text-sm mt-1">Go to Providers to connect AWS, GCP, Azure, or Kubernetes.</p>
@@ -174,11 +174,11 @@ export function DashboardPage() {
     : null;
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full min-w-0 flex flex-col">
       {/* Controls bar */}
-      <div className="p-3 border-b border-surface-600 bg-surface-900 flex items-center gap-3 flex-wrap">
+      <div className="p-3 border-b border-surface-600 bg-surface-900 grid grid-cols-1 sm:flex sm:items-center gap-3 sm:flex-wrap shrink-0">
         {/* Unified source selector */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {isK8s ? (
             <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-neon-purple/15 text-neon-purple">
               {activeCluster?.cluster_type?.toUpperCase() ?? 'K8S'}
@@ -199,7 +199,7 @@ export function DashboardPage() {
           <select
             value={activeSource}
             onChange={e => handleSourceChange(e.target.value)}
-            className="input-field w-auto text-xs"
+            className="input-field min-w-0 flex-1 sm:flex-none sm:w-auto text-xs"
           >
             {providers.filter(p => p.provider === 'aws').length > 0 && (
               <optgroup label="AWS Providers">
@@ -240,22 +240,22 @@ export function DashboardPage() {
           </select>
         </div>
 
-        <div className="w-px h-6 bg-surface-600" />
+        <div className="hidden sm:block w-px h-6 bg-surface-600" />
 
         {/* Cloud controls */}
         {isCloud && (
           <>
             <ResourceTypeSelector selected={selectedTypes} onChange={setSelectedTypes} cloud={cloudProvider} />
-            <div className="w-px h-6 bg-surface-600" />
+            <div className="hidden sm:block w-px h-6 bg-surface-600" />
             {/* Search */}
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search by name or ID..."
-                className="input-field pl-8 pr-8 w-52 text-xs"
+                className="input-field pl-8 pr-8 w-full sm:w-52 text-xs"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
@@ -267,8 +267,8 @@ export function DashboardPage() {
               <span className="text-[10px] text-gray-500">{matchCount} {matchCount === 1 ? 'match' : 'matches'}</span>
             )}
             {!isGcp && (
-              <label className="flex items-center gap-1.5 cursor-pointer ml-auto select-none">
-                <input type="checkbox" checked={withTags} onChange={e => setWithTags(e.target.checked)} className="w-3.5 h-3.5 accent-neon-blue" />
+              <label className="min-h-10 flex items-center gap-1.5 cursor-pointer sm:ml-auto select-none">
+                <input type="checkbox" checked={withTags} onChange={e => setWithTags(e.target.checked)} className="w-4 h-4 sm:w-3.5 sm:h-3.5 accent-neon-blue" />
                 <Tag className="w-3.5 h-3.5 text-gray-400" />
                 <span className="text-[11px] text-gray-400">Fetch Tags</span>
               </label>
@@ -276,7 +276,7 @@ export function DashboardPage() {
             <button
               onClick={handleCloudScan}
               disabled={awsLoading || !sourceId || selectedTypes.length === 0}
-              className={`btn-primary flex items-center gap-2 ${isGcp || isAzure ? 'ml-auto' : ''}`}
+              className={`btn-primary min-h-11 sm:min-h-0 justify-center flex items-center gap-2 ${isGcp || isAzure ? 'sm:ml-auto' : ''}`}
             >
               {awsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               {awsLoading ? 'Scanning...' : 'Scan Resources'}
@@ -287,7 +287,7 @@ export function DashboardPage() {
         {/* K8s-specific controls */}
         {isK8s && (
           <>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <span className="text-xs text-gray-400">Namespace</span>
               {namespacesLoading ? (
                 <span className="text-xs text-gray-500 animate-pulse">Loading...</span>
@@ -295,7 +295,7 @@ export function DashboardPage() {
                 <select
                   value={selectedNamespace}
                   onChange={e => setSelectedNamespace(e.target.value)}
-                  className="input-field w-auto text-xs"
+                  className="input-field min-w-0 flex-1 sm:flex-none sm:w-auto text-xs"
                 >
                   {namespaces.map(ns => (
                     <option key={ns} value={ns}>{ns}</option>
@@ -304,14 +304,14 @@ export function DashboardPage() {
               )}
             </div>
             <K8sResourceTypeSelector selected={k8sSelectedTypes} onChange={setK8sSelectedTypes} />
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search by name or ID..."
-                className="input-field pl-8 pr-8 w-52 text-xs"
+                className="input-field pl-8 pr-8 w-full sm:w-52 text-xs"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
@@ -325,7 +325,7 @@ export function DashboardPage() {
             <button
               onClick={handleK8sFetch}
               disabled={k8sLoading || !selectedNamespace || namespacesLoading || k8sSelectedTypes.length === 0}
-              className="btn-primary flex items-center gap-2 ml-auto"
+              className="btn-primary min-h-11 sm:min-h-0 justify-center flex items-center gap-2 sm:ml-auto"
             >
               {k8sLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Box className="w-4 h-4" />}
               {k8sLoading ? 'Fetching...' : 'Fetch Resources'}
@@ -344,7 +344,7 @@ export function DashboardPage() {
 
       {/* Last scanned timestamp */}
       {scannedAt && (
-        <div className="px-3 py-1 bg-surface-950 border-b border-surface-600 flex items-center gap-1.5 text-[10px] text-gray-600">
+        <div className="px-3 py-1 bg-surface-950 border-b border-surface-600 flex items-center gap-1.5 text-[10px] text-gray-600 shrink-0">
           <Clock className="w-3 h-3" />
           Last scanned: {new Date(scannedAt).toLocaleString()}
         </div>
@@ -358,7 +358,7 @@ export function DashboardPage() {
       )}
 
       {/* Graph area */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
         {graphData ? (
           graphData.nodes.length > 0 ? (
             isK8s ? (
@@ -378,7 +378,7 @@ export function DashboardPage() {
           )
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
-            <div className="text-center space-y-3">
+            <div className="text-center space-y-3 max-w-xs px-4">
               <div className="w-16 h-16 mx-auto rounded-full border-2 border-neon-green/20 flex items-center justify-center">
                 <RefreshCw className={`w-8 h-8 text-neon-green/30 ${loading ? 'animate-spin' : ''}`} />
               </div>
@@ -400,7 +400,7 @@ export function DashboardPage() {
 
       {/* Stats bar */}
       {graphData && graphData.nodes.length > 0 && (
-        <div className="p-2 border-t border-surface-600 bg-surface-900 flex items-center gap-6 text-[10px] text-gray-500">
+        <div className="p-2 border-t border-surface-600 bg-surface-900 flex items-center gap-4 sm:gap-6 text-[10px] text-gray-500 overflow-x-auto shrink-0">
           <span>Nodes: <span className="text-gray-300">{graphData.nodes.length}</span></span>
           <span>Edges: <span className="text-gray-300">{graphData.edges.length}</span></span>
           {isCloud && (
@@ -419,7 +419,7 @@ export function DashboardPage() {
       {!isChatOpen && graphData && graphData.nodes.length > 0 && (
         <button
           onClick={() => setIsChatOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-neon-green shadow-lg hover:shadow-neon-green/50 transition-all flex items-center justify-center group z-40"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-14 h-14 rounded-full bg-neon-green shadow-lg hover:shadow-neon-green/50 transition-all flex items-center justify-center group z-40"
           title={isK8s ? 'Open Kubernetes Assistant' : 'Open Infrastructure Assistant'}
         >
           <MessageSquare className="w-6 h-6 text-surface-900" />

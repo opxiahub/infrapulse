@@ -5,6 +5,16 @@
 @layer base {
   body {
     @apply bg-surface-950 text-gray-100 font-mono antialiased m-0;
+    min-width: 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
   }
 
   ::-webkit-scrollbar {
@@ -20,22 +30,22 @@
 
 @layer components {
   .btn-primary {
-    @apply px-4 py-2 bg-neon-green/10 border border-neon-green/50 text-neon-green
+    @apply px-4 py-2 min-h-10 bg-neon-green/10 border border-neon-green/50 text-neon-green
            rounded hover:bg-neon-green/20 hover:shadow-neon-green transition-all duration-200
            font-medium text-sm cursor-pointer;
   }
   .btn-danger {
-    @apply px-4 py-2 bg-neon-red/10 border border-neon-red/50 text-neon-red
+    @apply px-4 py-2 min-h-10 bg-neon-red/10 border border-neon-red/50 text-neon-red
            rounded hover:bg-neon-red/20 hover:shadow-neon-red transition-all duration-200
            font-medium text-sm cursor-pointer;
   }
   .btn-secondary {
-    @apply px-4 py-2 bg-surface-700 border border-surface-600 text-gray-300
+    @apply px-4 py-2 min-h-10 bg-surface-700 border border-surface-600 text-gray-300
            rounded hover:bg-surface-600 transition-all duration-200
            font-medium text-sm cursor-pointer;
   }
   .input-field {
-    @apply w-full px-3 py-2 bg-surface-800 border border-surface-600 rounded
+    @apply w-full min-h-10 px-3 py-2 bg-surface-800 border border-surface-600 rounded
            text-gray-100 placeholder-gray-500 focus:outline-none focus:border-neon-blue/50
            focus:shadow-neon-blue transition-all duration-200 text-sm;
   }

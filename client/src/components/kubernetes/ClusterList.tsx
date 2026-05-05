@@ -58,7 +58,7 @@ export function ClusterList({ clusters, selectedId, onSelect, onRefresh }: Props
               : 'hover:border-surface-500'
           }`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <Server className={`w-4 h-4 ${iconColor} flex-shrink-0`} />
               <div className="min-w-0">
@@ -76,7 +76,8 @@ export function ClusterList({ clusters, selectedId, onSelect, onRefresh }: Props
             </div>
             <button
               onClick={e => handleDelete(e, cluster.id)}
-              className="text-gray-600 hover:text-neon-red transition-colors ml-2 flex-shrink-0"
+              className="h-10 w-10 -mt-2 -mr-2 rounded flex items-center justify-center text-gray-600 hover:text-neon-red transition-colors flex-shrink-0"
+              aria-label={`Delete ${cluster.label}`}
             >
               <Trash2 className="w-4 h-4" />
             </button>
