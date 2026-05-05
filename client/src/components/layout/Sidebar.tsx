@@ -38,7 +38,7 @@ export function Sidebar() {
 
       <div className="p-3 border-t border-surface-600">
         <div className="text-[10px] text-gray-600 text-center">
-          v1.0.0 &middot; Opxia
+          v1.0.0 &middot; InfraPulse
         </div>
       </div>
     </aside>

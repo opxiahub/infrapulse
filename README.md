@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="client/public/infrapulse.png" alt="Opxia InfraPulse" width="720" />
+  <img src="client/public/infrapulse.png" alt="InfraPulse" width="720" />
 </p>
 
-# Opxia InfraPulse
+# InfraPulse
 
 InfraPulse is a full-stack infrastructure visibility application for connecting cloud and Kubernetes environments, discovering resources, and exploring them as interactive dependency graphs.
 
