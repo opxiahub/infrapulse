@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-surface-950 text-gray-100 font-mono antialiased m-0;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-900;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-600 rounded;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-neon-green/10 border border-neon-green/50 text-neon-green
+           rounded hover:bg-neon-green/20 hover:shadow-neon-green transition-all duration-200
+           font-medium text-sm cursor-pointer;
+  }
+  .btn-danger {
+    @apply px-4 py-2 bg-neon-red/10 border border-neon-red/50 text-neon-red
+           rounded hover:bg-neon-red/20 hover:shadow-neon-red transition-all duration-200
+           font-medium text-sm cursor-pointer;
+  }
+  .btn-secondary {
+    @apply px-4 py-2 bg-surface-700 border border-surface-600 text-gray-300
+           rounded hover:bg-surface-600 transition-all duration-200
+           font-medium text-sm cursor-pointer;
+  }
+  .input-field {
+    @apply w-full px-3 py-2 bg-surface-800 border border-surface-600 rounded
+           text-gray-100 placeholder-gray-500 focus:outline-none focus:border-neon-blue/50
+           focus:shadow-neon-blue transition-all duration-200 text-sm;
+  }
+  .card {
+    @apply bg-surface-800 border border-surface-600 rounded-lg p-4;
+  }
+}
+
+/* React Flow overrides */
+.react-flow__background {
+  background-color: #06060a !important;
+}
+.react-flow__minimap {
+  background-color: #0a0a0f !important;
+}
+.react-flow__controls button {
+  background-color: #12121a !important;
+  border-color: #252530 !important;
+  color: #9ca3af !important;
+}
+.react-flow__controls button:hover {
+  background-color: #1a1a25 !important;
+}
+
+@keyframes nodePulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.3); }
+}
+.node-pulse {
+  animation: nodePulse 2s ease-in-out infinite;
+}
+.node-pulse-fast {
+  animation: nodePulse 1s ease-in-out infinite;
+}

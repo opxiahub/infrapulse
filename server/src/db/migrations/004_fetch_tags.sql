@@ -1,0 +1,1 @@
+ALTER TABLE cached_graphs ADD COLUMN fetch_tags INTEGER NOT NULL DEFAULT 0;
