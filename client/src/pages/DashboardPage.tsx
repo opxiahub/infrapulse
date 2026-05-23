@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { InfraGraph } from '../components/graph/InfraGraph';
 import { K8sGraph } from '../components/graph/K8sGraph';
+import { InfraInventory } from '../components/graph/InfraInventory';
+import { K8sInventory } from '../components/graph/K8sInventory';
 import { ResourceSummary } from '../components/graph/ResourceSummary';
 import { K8sSummary } from '../components/graph/K8sSummary';
 import { ResourceTypeSelector } from '../components/ResourceTypeSelector';
@@ -13,7 +15,7 @@ import { K8S_DEFAULT_TYPES } from '../config/k8s-resources';
 import { GCP_DEFAULT_TYPES } from '../config/gcp-resources';
 import { AZURE_DEFAULT_TYPES } from '../config/azure-resources';
 import { api } from '../lib/api';
-import { RefreshCw, Loader2, AlertTriangle, Clock, Search, X, Tag, MessageSquare, Box } from 'lucide-react';
+import { RefreshCw, Loader2, AlertTriangle, Clock, Search, X, Tag, MessageSquare, Box, Share2, List } from 'lucide-react';
 
 interface CloudProviderRow {
   id: number;
@@ -40,6 +42,7 @@ export function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [withTags, setWithTags] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'topology' | 'inventory'>('topology');
 
   const { graphData: awsGraphData, loading: awsLoading, error: awsError, scannedAt: awsScannedAt, activeTypes, fetchTags, fetchGraph, loadCached, setGraphData } = useGraph();
   const {
@@ -242,6 +245,32 @@ export function DashboardPage() {
 
         <div className="hidden sm:block w-px h-6 bg-surface-600" />
 
+        {/* View toggle: Topology (graph) vs Inventory (list) */}
+        <div className="flex items-center rounded-md border border-surface-600 bg-surface-950 p-0.5 shrink-0">
+          <button
+            onClick={() => setViewMode('topology')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+              viewMode === 'topology' ? 'bg-surface-700 text-gray-100' : 'text-gray-500 hover:text-gray-300'
+            }`}
+            title="Topology view"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Topology</span>
+          </button>
+          <button
+            onClick={() => setViewMode('inventory')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+              viewMode === 'inventory' ? 'bg-surface-700 text-gray-100' : 'text-gray-500 hover:text-gray-300'
+            }`}
+            title="Inventory view"
+          >
+            <List className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Inventory</span>
+          </button>
+        </div>
+
+        <div className="hidden sm:block w-px h-6 bg-surface-600" />
+
         {/* Cloud controls */}
         {isCloud && (
           <>
@@ -362,9 +391,17 @@ export function DashboardPage() {
         {graphData ? (
           graphData.nodes.length > 0 ? (
             isK8s ? (
-              <K8sGraph graphData={graphData} searchQuery={searchQuery} />
+              viewMode === 'inventory' ? (
+                <K8sInventory graphData={graphData} namespace={selectedNamespace} searchQuery={searchQuery} />
+              ) : (
+                <K8sGraph graphData={graphData} searchQuery={searchQuery} />
+              )
             ) : (
-              <InfraGraph graphData={graphData} searchQuery={searchQuery} />
+              viewMode === 'inventory' ? (
+                <InfraInventory graphData={graphData} cloud={cloudProvider} searchQuery={searchQuery} />
+              ) : (
+                <InfraGraph graphData={graphData} searchQuery={searchQuery} />
+              )
             )
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
