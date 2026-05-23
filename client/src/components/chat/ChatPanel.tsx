@@ -48,11 +48,11 @@ export function ChatPanel({
       if (sourceType === 'k8s') {
         welcomeContent = `👋 Hello! I'm your Kubernetes assistant for **${sourceLabel}**.\n\nI'm grounded on the scanned **${namespace || 'selected'}** namespace metadata in ${sourceSubtitle}. Ask me about:\n\n• Workloads, pods, jobs, and cronjobs\n• Services, ingresses, and exposed backends\n• Images, replica counts, readiness, and restart counts\n• ConfigMaps, secrets, PVCs, and node metadata\n• Relationships between scanned namespace resources\n\nWhat would you like to know?`;
       } else if (sourceType === 'gcp') {
-        welcomeContent = `👋 Hello! I'm your infrastructure assistant for **${sourceLabel}** (${sourceSubtitle}).\n\nI can help you understand your GCP infrastructure configuration and metadata. Ask me about:\n\n• Resource counts and lists\n• Configuration details (machine types, Cloud SQL tiers, etc.)\n• Network settings (VPCs, subnets, firewall rules)\n• Labels and management status (IaC vs manual)\n• Resource relationships\n\nWhat would you like to know?`;
+        welcomeContent = `👋 Hello! I'm your infrastructure assistant for **${sourceLabel}** (${sourceSubtitle}).\n\nI have a full snapshot of your scanned GCP resources and can reason across all of them. Try asking:\n\n• "Which resources have the label env=production?"\n• "List all Cloud SQL instances and their tiers"\n• "What isn't managed by IaC?"\n• "How are my VPCs, subnets, and firewall rules related?"\n• "Refresh and show me the latest"\n\nWhat would you like to know?`;
       } else if (sourceType === 'azure') {
-        welcomeContent = `👋 Hello! I'm your infrastructure assistant for **${sourceLabel}** (${sourceSubtitle}).\n\nI can help you understand your Azure infrastructure configuration and metadata. Ask me about:\n\n• Resource counts and lists\n• Configuration details (VM sizes, SKUs, endpoints, etc.)\n• Network settings (VNets, subnets, NSGs, public IPs)\n• Tags and management status (IaC vs manual)\n• Resource relationships\n\nWhat would you like to know?`;
+        welcomeContent = `👋 Hello! I'm your infrastructure assistant for **${sourceLabel}** (${sourceSubtitle}).\n\nI have a full snapshot of your scanned Azure resources and can reason across all of them. Try asking:\n\n• "Which resources are tagged Environment=production?"\n• "List all VMs with their sizes"\n• "What isn't managed by IaC?"\n• "Show NSGs and the subnets they protect"\n• "Refresh and show me the latest"\n\nWhat would you like to know?`;
       } else {
-        welcomeContent = `👋 Hello! I'm your infrastructure assistant for **${sourceLabel}** (${sourceSubtitle}).\n\nI can help you understand your infrastructure configuration and metadata. Ask me about:\n\n• Resource counts and lists\n• Configuration details (instance types, runtime, etc.)\n• Network settings (VPCs, subnets, IPs)\n• Tags and management status\n• Resource relationships\n\nWhat would you like to know?`;
+        welcomeContent = `👋 Hello! I'm your infrastructure assistant for **${sourceLabel}** (${sourceSubtitle}).\n\nI have a full snapshot of your scanned resources and can reason across all of them. Try asking:\n\n• "Which resources are tagged Environment=production?"\n• "List all RDS databases and their engines"\n• "What isn't managed by IaC?"\n• "Which Lambdas sit in which VPC?"\n• "Refresh and show me the latest"\n\nWhat would you like to know?`;
       }
       setMessages([{
         role: 'assistant',
@@ -68,6 +68,11 @@ export function ChatPanel({
       setError(sourceType === 'k8s' ? 'No cluster selected' : 'No provider selected');
       return;
     }
+
+    // Prior turns to send as context (drop the initial welcome message)
+    const conversationHistory = messages
+      .slice(1)
+      .map(m => ({ role: m.role, content: m.content }));
 
     // Add user message
     const userMessage: Message = {
@@ -92,6 +97,7 @@ export function ChatPanel({
           providerId: sourceType !== 'k8s' ? sourceId : undefined,
           clusterId: sourceType === 'k8s' ? sourceId : undefined,
           namespace: sourceType === 'k8s' ? namespace : undefined,
+          conversationHistory,
         }),
       });
 

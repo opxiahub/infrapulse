@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { ChatMessage } from './types.js';
 
 const OPENAI_CHAT_COMPLETIONS_URL = 'https://api.openai.com/v1/chat/completions';
 const FALLBACK_OPENAI_MODEL = 'gpt-5.4';
@@ -22,13 +23,21 @@ export async function callOpenAILLM(
   system: string,
   user: string,
   modelName = process.env.OPENAI_MODEL || FALLBACK_OPENAI_MODEL,
-  expectJson = false
+  expectJson = false,
+  history: ChatMessage[] = []
 ): Promise<any> {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY is not configured');
     }
+
+    // Keep only the most recent turns to bound token usage, and never trust a
+    // client-sent system role — only user/assistant turns are forwarded.
+    const priorTurns = history
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .slice(-10)
+      .map(m => ({ role: m.role, content: m.content }));
 
     const model = modelName.replace(/^openai\//, '') || process.env.OPENAI_MODEL || FALLBACK_OPENAI_MODEL;
     const payload = {
@@ -38,6 +47,7 @@ export async function callOpenAILLM(
           role: 'developer',
           content: system,
         },
+        ...priorTurns,
         {
           role: 'user',
           content: user,

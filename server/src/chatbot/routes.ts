@@ -3,70 +3,15 @@ import { requireAuth } from '../auth/middleware.js';
 import { getDb } from '../db/connection.js';
 import type { User } from '../auth/passport.js';
 import type { ChatRequest, ChatResponse } from './types.js';
-import { analyzeIntent } from './intent-analyzer.js';
-import { buildContext } from './context-builder.js';
+import { buildInfraContext } from './context-builder.js';
 import { callOpenAILLM } from './llm-service.js';
-import type { GraphData } from '../aws/types.js';
-import { analyzeK8sIntent } from './k8s-intent-analyzer.js';
-import { buildK8sContext } from './k8s-context-builder.js';
+import { getCloudChatData, wantsRefresh, mentionsTags } from './cloud-data.js';
+import { buildFullK8sContext } from './k8s-context-builder.js';
 import type { K8sGraphData } from './k8s-types.js';
 
 const router = Router();
 
 router.use(requireAuth);
-
-/**
- * Provider-agnostic context builder used for GCP, Azure, and any future provider
- * where we don't yet have an intent analyzer with a typed schema. Groups all
- * nodes by type and emits the same metadata fields the AWS context-builder
- * surfaces — keeps the LLM input shape consistent across clouds.
- */
-function buildFullGraphContext(graphData: GraphData): string {
-  if (!graphData.nodes.length) return 'No resources found in the cached graph.';
-
-  const parts: string[] = [];
-  parts.push(`Total resources found: ${graphData.nodes.length}`);
-  parts.push('');
-
-  const byType = new Map<string, typeof graphData.nodes>();
-  for (const node of graphData.nodes) {
-    if (!byType.has(node.type)) byType.set(node.type, []);
-    byType.get(node.type)!.push(node);
-  }
-
-  for (const [type, nodes] of byType.entries()) {
-    parts.push(`${type.toUpperCase()} Resources (${nodes.length}):`);
-    for (const node of nodes) {
-      const lines: string[] = [];
-      lines.push(`  - ${node.label} (${node.id})`);
-      lines.push(`    Status: ${node.status}`);
-      lines.push(`    Managed: ${node.isManual ? 'Manual' : 'IaC (Terraform/Deployment Manager)'}`);
-
-      const metadata = node.metadata || {};
-      for (const [key, val] of Object.entries(metadata)) {
-        if (val === null || val === undefined) continue;
-        if (key === 'subtitle') continue;
-        if (typeof val === 'object' && !Array.isArray(val)) continue;
-        const display = Array.isArray(val) ? val.slice(0, 5).join(', ') : String(val);
-        if (display) lines.push(`    ${key}: ${display}`);
-      }
-
-      const tags = node.tags || {};
-      const tagCount = Object.keys(tags).length;
-      if (tagCount > 0) {
-        const tagStrings = Object.entries(tags).slice(0, 5).map(([k, v]) => `${k}=${v}`);
-        lines.push(`    Labels (${tagCount}): ${tagStrings.join(', ')}${tagCount > 5 ? '...' : ''}`);
-      } else {
-        lines.push(`    Labels: None`);
-      }
-
-      parts.push(lines.join('\n'));
-    }
-    parts.push('');
-  }
-
-  return parts.join('\n');
-}
 
 // POST /api/chat/message - Send a chat message
 router.post('/message', async (req: Request, res: Response) => {
@@ -114,38 +59,24 @@ router.post('/message', async (req: Request, res: Response) => {
       }
 
       const graphData: K8sGraphData = JSON.parse(cachedGraph.graph_data);
-      const intent = await analyzeK8sIntent(message);
-      const { context, isRefusal, refusalMessage } = buildK8sContext(graphData, intent);
+      const context = buildFullK8sContext(graphData, namespace);
 
-      if (isRefusal && refusalMessage) {
-        const response: ChatResponse = {
-          response: refusalMessage,
-          timestamp: new Date().toISOString(),
-        };
-        return res.json(response);
-      }
+      const systemPrompt = `You are a Kubernetes infrastructure assistant for the "${cluster.label}" ${String(cluster.cluster_type).toUpperCase()} cluster, namespace "${namespace}".
 
-      const systemPrompt = `You are a Kubernetes infrastructure assistant for the "${cluster.label}" ${String(cluster.cluster_type).toUpperCase()} cluster.
+You are given a COMPLETE snapshot of every scanned resource in this namespace below — counts, full per-resource metadata, and relationships. Reason over ALL of it to answer the user. You can list, count, group, filter, and cross-reference resources yourself (e.g. find every workload using a given image, or every resource of a given status).
 
-Your role is to help users understand the scanned "${namespace}" namespace based on cached configuration metadata ONLY.
-
-You have access to the following namespace context:
+NAMESPACE DATA:
 ${context}
 
 Guidelines:
-1. Answer only from the provided cached Kubernetes context
-2. Be concise but informative
-3. Use bullet points for lists when helpful
-4. Include specific workload, service, ingress, pod, node, or storage names when relevant
-5. If asked about logs, live metrics, traffic, runtime health, or other unavailable data, explain that you only have scanned metadata
-6. Do NOT invent cluster state that is not present in the context
-7. Stay within the scope of the scanned namespace and related cluster-node metadata
+1. Answer directly and specifically using the data above — include concrete resource names, counts, images, ports, etc.
+2. When listing matches, scan EVERY resource in the data; never guess or sample.
+3. Use bullet points or compact tables for lists.
+4. Live runtime data (current CPU/memory, live pod logs, traffic, real-time health) is NOT in this snapshot. If asked, say so briefly and offer the closest available metadata (e.g. restart counts, readiness, phase) — do not refuse the whole question.
+5. Never invent resources or fields that are not present in the data.
+6. The snapshot reflects the last scan of this namespace; if the user needs fresher data, tell them to re-fetch resources for this namespace from the dashboard.`;
 
-Cluster context: ${cluster.label}
-Cluster type: ${String(cluster.cluster_type).toUpperCase()}
-Namespace context: ${namespace}`;
-
-      llmResponse = await callOpenAILLM(systemPrompt, message, 'gpt-5.4', false);
+      llmResponse = await callOpenAILLM(systemPrompt, message, 'gpt-5.4', false, conversationHistory || []);
     } else {
       if (!providerId) {
         return res.status(400).json({ error: 'providerId is required for cloud chat' });
@@ -159,69 +90,56 @@ Namespace context: ${namespace}`;
         return res.status(404).json({ error: 'Provider not found or access denied' });
       }
 
-      const cachedGraph = db.prepare(
-        'SELECT graph_data FROM cached_graphs WHERE user_id = ? AND provider_id = ?'
-      ).get(user.id, providerId) as any;
+      const isGcp = provider.provider === 'gcp' || sourceType === 'gcp';
+      const isAzure = provider.provider === 'azure' || sourceType === 'azure';
+      const cloudName = isAzure ? 'Azure' : isGcp ? 'GCP' : 'AWS';
+      const tagWord = isGcp ? 'Labels' : 'Tags';
 
-      if (!cachedGraph) {
-        return res.status(404).json({
-          error: 'No infrastructure data found. Please scan your resources first.'
+      // Fetch the snapshot — transparently re-scanning the live environment when
+      // there's no cached data, the user asked for the latest, or a tag question
+      // arrived for a scan that didn't capture tags.
+      let data;
+      try {
+        data = await getCloudChatData(user.id, providerId, isAzure ? 'azure' : isGcp ? 'gcp' : 'aws', {
+          forceRefresh: wantsRefresh(message),
+          needTags: mentionsTags(message),
+        });
+      } catch (scanErr: any) {
+        return res.status(502).json({
+          error: `Could not load or refresh infrastructure data: ${scanErr.message}. Try scanning resources from the dashboard.`,
         });
       }
 
-      const graphData: GraphData = JSON.parse(cachedGraph.graph_data);
+      const context = buildInfraContext(data.graphData, {
+        scannedTypes: data.scannedTypes,
+        fetchTags: data.fetchTags,
+        scannedAt: data.scannedAt,
+        tagWord,
+      });
 
-      // The intent analyzer is AWS-aware. For GCP/Azure we skip intent analysis and
-      // hand the LLM the full graph context — the language model is more than
-      // capable of filtering on its own from a few hundred resources.
-      const isGcp = provider.provider === 'gcp' || sourceType === 'gcp';
-      const isAzure = provider.provider === 'azure' || sourceType === 'azure';
-      let context: string;
+      const freshnessNote = data.refreshed
+        ? 'This snapshot was just refreshed live for this question.'
+        : `This is the most recent cached scan${data.scannedAt ? ` (captured ${data.scannedAt})` : ''}.`;
 
-      if (isGcp || isAzure) {
-        context = buildFullGraphContext(graphData);
-      } else {
-        console.log(`Analyzing intent for: "${message}"`);
-        const intent = await analyzeIntent(message);
-        console.log('Intent analysis result:', intent);
-
-        const built = buildContext(graphData, intent);
-        if (built.isRefusal && built.refusalMessage) {
-          const response: ChatResponse = {
-            response: built.refusalMessage,
-            timestamp: new Date().toISOString()
-          };
-          return res.json(response);
-        }
-        context = built.context;
-      }
-
-      const cloudName = isAzure ? 'Azure' : isGcp ? 'GCP' : 'AWS';
       const systemPrompt = `You are a ${cloudName} infrastructure assistant for the "${provider.label}" environment (${provider.region} region).
 
-Your role is to help users understand their infrastructure based on configuration and metadata ONLY.
+You are given a COMPLETE snapshot of the scanned environment below: an environment summary, counts by type, a ${tagWord.toLowerCase()} index, full per-resource metadata, and relationships. Reason over ALL of it. You can list, count, group, filter, and cross-reference resources yourself — for example "which resources are tagged Environment=production" or "which resources are not IaC-managed" — by scanning every resource in the data.
 
-You have access to the following information about their resources:
+${freshnessNote}
+
+ENVIRONMENT DATA:
 ${context}
 
 Guidelines:
-1. Answer questions accurately based on the provided context
-2. Be concise but informative
-3. Use bullet points for lists
-4. Include specific resource names and details when relevant
-5. If asked about something not in the context, politely explain you don't have that information
-6. Do NOT make assumptions about data not provided
-7. Stay within the scope of infrastructure configuration and metadata
-8. Do NOT speculate about live metrics, logs, traffic, or runtime health — only configuration is available
+1. Answer directly and specifically using the data above; include concrete resource names, IDs, and relevant fields (VPC, region, engine, ${tagWord.toLowerCase()}, etc.).
+2. For "which resources have X" questions, scan EVERY resource and the ${tagWord.toLowerCase()} index — list all matches with their type, and give a total count. Never sample or guess.
+3. Use bullet points or compact tables for lists; be concise but complete.
+4. Only configuration/metadata is available — not live metrics, logs, traffic, or runtime health. If asked for those, say so briefly and offer the closest available config detail instead of refusing the whole question.
+5. The snapshot only includes these resource types: ${data.scannedTypes.join(', ')}. If asked about a type not listed, say it wasn't part of the scan and that they can broaden the scan from the dashboard (or ask you to refresh).
+6. ${data.fetchTags ? `${tagWord} were captured in this scan.` : `${tagWord} were NOT captured in this scan; if the user needs ${tagWord.toLowerCase()}-based answers, tell them to enable "Fetch Tags" and rescan, or ask for the latest.`}
+7. Never invent resources, fields, or values not present in the data.`;
 
-Provider context: ${provider.label} in ${provider.region}`;
-
-      llmResponse = await callOpenAILLM(
-        systemPrompt,
-        message,
-        'gpt-5.4',
-        false
-      );
+      llmResponse = await callOpenAILLM(systemPrompt, message, 'gpt-5.4', false, conversationHistory || []);
     }
 
     const response: ChatResponse = {

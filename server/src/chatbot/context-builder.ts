@@ -1,173 +1,151 @@
 import type { GraphData, InfraNode } from '../aws/types.js';
-import type { IntentAnalysisResult } from './types.js';
-import { RESOURCE_SCHEMAS, getAvailableFieldsMessage } from './types.js';
 
-export function buildContext(
-  graphData: GraphData,
-  intent: IntentAnalysisResult
-): { context: string; isRefusal: boolean; refusalMessage?: string } {
-  // If question is not answerable, build refusal message
-  if (!intent.isAnswerable) {
-    const refusalMessage = buildRefusalMessage(intent);
-    return {
-      context: '',
-      isRefusal: true,
-      refusalMessage
-    };
-  }
-
-  // Filter nodes based on resource types from intent
-  let relevantNodes: InfraNode[] = graphData.nodes;
-
-  if (intent.resourceTypes.length > 0) {
-    relevantNodes = graphData.nodes.filter(node =>
-      (intent.resourceTypes as string[]).includes(node.type)
-    );
-  }
-
-  // Apply additional filters if specified
-  if (intent.filters) {
-    relevantNodes = applyFilters(relevantNodes, intent.filters);
-  }
-
-  // Build context string with only relevant resource information
-  const context = buildContextString(relevantNodes, intent);
-
-  return {
-    context,
-    isRefusal: false
-  };
+export interface ContextOptions {
+  /** Resource types that were actually scanned (from the cached graph row). */
+  scannedTypes?: string[];
+  /** Whether tags/labels were fetched during the scan. */
+  fetchTags?: boolean;
+  /** ISO timestamp of the scan that produced this graph. */
+  scannedAt?: string | null;
+  /** Label used for tags vs labels in the prose ("Tags" for AWS/Azure, "Labels" for GCP). */
+  tagWord?: string;
 }
 
-function applyFilters(nodes: InfraNode[], filters: any): InfraNode[] {
-  let filtered = nodes;
+const MAX_ARRAY_ITEMS = 12;
 
-  // Filter by missing tags
-  if (filters.missingTag) {
-    filtered = filtered.filter(node => {
-      const tags = node.tags || {};
-      return Object.keys(tags).length === 0;
-    });
-  }
-
-  // Filter by having tags
-  if (filters.hasTag && !filters.missingTag) {
-    filtered = filtered.filter(node => {
-      const tags = node.tags || {};
-      return Object.keys(tags).length > 0;
-    });
-  }
-
-  // Filter by status
-  if (filters.status) {
-    filtered = filtered.filter(node =>
-      node.status?.toLowerCase().includes(filters.status.toLowerCase())
+function flattenMetadataValue(val: unknown): string | null {
+  if (val === null || val === undefined) return null;
+  if (Array.isArray(val)) {
+    if (val.length === 0) return null;
+    const items = val.slice(0, MAX_ARRAY_ITEMS).map(v =>
+      typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)
     );
+    return items.join(', ') + (val.length > MAX_ARRAY_ITEMS ? `, …(+${val.length - MAX_ARRAY_ITEMS} more)` : '');
   }
-
-  // Filter by manual/managed
-  if (filters.isManual !== undefined) {
-    filtered = filtered.filter(node => node.isManual === filters.isManual);
+  if (typeof val === 'object') {
+    try {
+      const str = JSON.stringify(val);
+      return str.length > 400 ? str.slice(0, 400) + '…' : str;
+    } catch {
+      return null;
+    }
   }
-
-  return filtered;
+  const str = String(val);
+  return str.length === 0 ? null : str;
 }
 
-function buildContextString(nodes: InfraNode[], intent: IntentAnalysisResult): string {
+/**
+ * Builds a comprehensive, reasoning-friendly snapshot of the entire scanned
+ * environment. Unlike the old intent-filtered builder, this surfaces EVERY
+ * resource with ALL of its metadata and tags plus aggregate indexes (counts,
+ * a tag index, relationships) so the LLM can answer cross-resource questions
+ * — e.g. "which resources are tagged Environment=production" — without us
+ * having to pre-guess the resource type.
+ */
+export function buildInfraContext(graphData: GraphData, opts: ContextOptions = {}): string {
+  const tagWord = opts.tagWord || 'Tags';
+  const nodes = graphData.nodes || [];
   if (nodes.length === 0) {
-    return 'No resources found matching the query criteria.';
+    return 'The scanned environment currently contains no resources.';
   }
 
-  const contextParts: string[] = [];
-  contextParts.push(`Total resources found: ${nodes.length}`);
-  contextParts.push('');
-
-  // Group by resource type
-  const nodesByType = new Map<string, InfraNode[]>();
+  const byType = new Map<string, InfraNode[]>();
   for (const node of nodes) {
-    if (!nodesByType.has(node.type)) {
-      nodesByType.set(node.type, []);
-    }
-    nodesByType.get(node.type)!.push(node);
+    if (!byType.has(node.type)) byType.set(node.type, []);
+    byType.get(node.type)!.push(node);
   }
 
-  // Build detailed context for each resource type
-  for (const [type, typeNodes] of nodesByType.entries()) {
-    contextParts.push(`${type.toUpperCase()} Resources (${typeNodes.length}):`);
-    
-    for (const node of typeNodes) {
-      const nodeInfo: string[] = [];
-      nodeInfo.push(`  - ${node.label} (${node.id})`);
-      nodeInfo.push(`    Status: ${node.status}`);
-      nodeInfo.push(`    Managed: ${node.isManual ? 'Manual' : 'IaC (Terraform/CloudFormation)'}`);
+  const managed = nodes.filter(n => !n.isManual).length;
+  const manual = nodes.length - managed;
+  const tagged = nodes.filter(n => n.tags && Object.keys(n.tags).length > 0).length;
 
-      // Add relevant metadata based on resource type
+  const parts: string[] = [];
+
+  // ── Snapshot header ──────────────────────────────────────────────────────
+  parts.push('=== ENVIRONMENT SNAPSHOT ===');
+  parts.push(`Total resources: ${nodes.length}`);
+  if (opts.scannedAt) parts.push(`Data captured at: ${opts.scannedAt}`);
+  if (opts.scannedTypes?.length) parts.push(`Resource types included in this scan: ${opts.scannedTypes.join(', ')}`);
+  parts.push(`${tagWord} fetched during scan: ${opts.fetchTags ? 'yes' : 'no'}`);
+  parts.push(`IaC-managed: ${managed} | Manual/unmanaged: ${manual}`);
+  parts.push(`With ${tagWord.toLowerCase()}: ${tagged} | Without ${tagWord.toLowerCase()}: ${nodes.length - tagged}`);
+  parts.push('');
+
+  // ── Counts by type ───────────────────────────────────────────────────────
+  parts.push('=== RESOURCE COUNTS BY TYPE ===');
+  for (const [type, list] of [...byType.entries()].sort((a, b) => b[1].length - a[1].length)) {
+    parts.push(`- ${type}: ${list.length}`);
+  }
+  parts.push('');
+
+  // ── Tag index (key -> value -> resources) ────────────────────────────────
+  const tagIndex = new Map<string, Map<string, string[]>>();
+  for (const node of nodes) {
+    const tags = node.tags || {};
+    for (const [k, v] of Object.entries(tags)) {
+      if (!tagIndex.has(k)) tagIndex.set(k, new Map());
+      const valMap = tagIndex.get(k)!;
+      const val = String(v ?? '');
+      if (!valMap.has(val)) valMap.set(val, []);
+      valMap.get(val)!.push(node.label || node.id);
+    }
+  }
+  if (tagIndex.size > 0) {
+    parts.push(`=== ${tagWord.toUpperCase()} INDEX (key = value → resources) ===`);
+    for (const [key, valMap] of tagIndex.entries()) {
+      for (const [val, names] of valMap.entries()) {
+        const shown = names.slice(0, MAX_ARRAY_ITEMS).join(', ');
+        const more = names.length > MAX_ARRAY_ITEMS ? `, …(+${names.length - MAX_ARRAY_ITEMS} more)` : '';
+        parts.push(`- ${key} = ${val || '(empty)'} → ${names.length} resource(s): ${shown}${more}`);
+      }
+    }
+    parts.push('');
+  }
+
+  // ── Full resource detail ─────────────────────────────────────────────────
+  parts.push('=== RESOURCES (full detail) ===');
+  for (const [type, list] of byType.entries()) {
+    parts.push(`${type.toUpperCase()} (${list.length}):`);
+    for (const node of list) {
+      const lines: string[] = [];
+      lines.push(`  - ${node.label} [${node.id}]`);
+      lines.push(`    status: ${node.status}`);
+      lines.push(`    managed: ${node.isManual ? 'Manual / unmanaged' : 'IaC-managed'}`);
+
       const metadata = node.metadata || {};
-      
-      // Common fields
-      if (metadata.instanceType) nodeInfo.push(`    Type: ${metadata.instanceType}`);
-      if (metadata.instanceClass) nodeInfo.push(`    Class: ${metadata.instanceClass}`);
-      if (metadata.runtime) nodeInfo.push(`    Runtime: ${metadata.runtime}`);
-      if (metadata.engine) nodeInfo.push(`    Engine: ${metadata.engine}`);
-      if (metadata.vpcId) nodeInfo.push(`    VPC: ${metadata.vpcId}`);
-      if (metadata.availabilityZone) nodeInfo.push(`    AZ: ${metadata.availabilityZone}`);
-      if (metadata.memorySize) nodeInfo.push(`    Memory: ${metadata.memorySize}MB`);
-      if (metadata.timeout) nodeInfo.push(`    Timeout: ${metadata.timeout}s`);
-      if (metadata.endpoint) nodeInfo.push(`    Endpoint: ${metadata.endpoint}`);
-      if (metadata.domainName) nodeInfo.push(`    Domain: ${metadata.domainName}`);
-      if (metadata.webAclId) nodeInfo.push(`    WAF: ${metadata.webAclId}`);
-      if (metadata.origins && Array.isArray(metadata.origins)) {
-        nodeInfo.push(`    Origins: ${metadata.origins.join(', ')}`);
+      for (const [key, val] of Object.entries(metadata)) {
+        if (key === 'subtitle') continue;
+        const display = flattenMetadataValue(val);
+        if (display) lines.push(`    ${key}: ${display}`);
       }
-      
-      // Tags
+
       const tags = node.tags || {};
-      const tagCount = Object.keys(tags).length;
-      if (tagCount > 0) {
-        const tagStrings = Object.entries(tags)
-          .slice(0, 5)
-          .map(([k, v]) => `${k}=${v}`);
-        nodeInfo.push(`    Tags (${tagCount}): ${tagStrings.join(', ')}${tagCount > 5 ? '...' : ''}`);
+      const tagKeys = Object.keys(tags);
+      if (tagKeys.length > 0) {
+        const tagStr = tagKeys.map(k => `${k}=${tags[k]}`).join(', ');
+        lines.push(`    ${tagWord.toLowerCase()}: ${tagStr}`);
       } else {
-        nodeInfo.push(`    Tags: None`);
+        lines.push(`    ${tagWord.toLowerCase()}: none`);
       }
 
-      contextParts.push(nodeInfo.join('\n'));
+      parts.push(lines.join('\n'));
     }
-    contextParts.push('');
+    parts.push('');
   }
 
-  return contextParts.join('\n');
-}
-
-function buildRefusalMessage(intent: IntentAnalysisResult): string {
-  const unavailableFields = intent.unavailableFields || [];
-  
-  let message = "I don't have access to ";
-  
-  if (unavailableFields.length > 0) {
-    message += unavailableFields.join(', ');
-    message += ' for your infrastructure resources. ';
-  } else {
-    message += 'that type of information. ';
+  // ── Relationships ────────────────────────────────────────────────────────
+  const edges = graphData.edges || [];
+  if (edges.length > 0) {
+    parts.push('=== RELATIONSHIPS ===');
+    const nameById = new Map(nodes.map(n => [n.id, n.label || n.id]));
+    for (const edge of edges.slice(0, 200)) {
+      const s = nameById.get(edge.source) || edge.source;
+      const t = nameById.get(edge.target) || edge.target;
+      parts.push(`- ${s} ${edge.label || '→'} ${t}`);
+    }
+    if (edges.length > 200) parts.push(`…(+${edges.length - 200} more relationships)`);
+    parts.push('');
   }
 
-  message += '\n\n';
-
-  // Suggest what information IS available
-  if (intent.resourceTypes.length > 0) {
-    message += 'However, I can help you with:\n\n';
-    message += getAvailableFieldsMessage(intent.resourceTypes);
-  } else {
-    message += 'I can help you with configuration and metadata information about your AWS resources, such as:\n';
-    message += '• Resource counts and lists\n';
-    message += '• Configuration details (instance types, runtime, etc.)\n';
-    message += '• Network settings (VPCs, subnets, IPs)\n';
-    message += '• Tags and management status\n';
-    message += '• Resource relationships\n';
-  }
-
-  message += '\n\nWould you like to know about any of these aspects instead?';
-
-  return message;
+  return parts.join('\n');
 }

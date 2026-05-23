@@ -1,5 +1,40 @@
 import { getAvailableK8sFieldsMessage, type K8sGraphData, type K8sInfraNode, type K8sIntentAnalysisResult } from './k8s-types.js';
 
+/**
+ * Full-context builder for the namespace: every resource with all of its
+ * modeled metadata plus counts and relationships. The LLM reasons over this
+ * directly instead of relying on a pre-filtering intent analyzer, so questions
+ * that span multiple resource types (or that the analyzer would have refused)
+ * are answerable.
+ */
+export function buildFullK8sContext(graphData: K8sGraphData, namespace: string): string {
+  const nodes = graphData.nodes || [];
+  if (nodes.length === 0) {
+    return `The scanned "${namespace}" namespace currently contains no resources.`;
+  }
+
+  const byType = new Map<string, K8sInfraNode[]>();
+  for (const node of nodes) {
+    if (!byType.has(node.type)) byType.set(node.type, []);
+    byType.get(node.type)!.push(node);
+  }
+
+  const parts: string[] = [];
+  parts.push('=== NAMESPACE SNAPSHOT ===');
+  parts.push(`Namespace: ${namespace}`);
+  parts.push(`Total resources: ${nodes.length}`);
+  parts.push('');
+  parts.push('=== RESOURCE COUNTS BY TYPE ===');
+  for (const [type, list] of [...byType.entries()].sort((a, b) => b[1].length - a[1].length)) {
+    parts.push(`- ${type}: ${list.length}`);
+  }
+  parts.push('');
+
+  parts.push('=== RESOURCES (full detail) ===');
+  parts.push(buildContextString(nodes, graphData));
+  return parts.join('\n');
+}
+
 export function buildK8sContext(
   graphData: K8sGraphData,
   intent: K8sIntentAnalysisResult
