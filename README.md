@@ -1,246 +1,123 @@
 <p align="center">
-  <img src="client/public/infrapulse.png" alt="InfraPulse" width="720" />
+  <img src="client/public/infrapulse.png" alt="InfraPulse" width="640" />
 </p>
 
-# InfraPulse
+<h1 align="center">InfraPulse</h1>
 
-InfraPulse is a full-stack infrastructure visibility application for connecting cloud and Kubernetes environments, discovering resources, and exploring them as interactive dependency graphs.
+<p align="center">
+  Connect your cloud and Kubernetes environments, discover what's running, and explore it as an interactive dependency graph.
+</p>
 
-## What It Does
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
+</p>
 
-- Connect AWS accounts using access keys or temporary session credentials.
-- Connect GCP projects using service account credentials.
-- Connect Azure subscriptions using service principal credentials.
-- Connect Kubernetes clusters such as ROSA, EKS, GKE, and AKS.
-- Discover supported infrastructure resources and visualize relationships as graphs.
-- Cache scanned infrastructure data locally.
-- Inspect graph nodes, Kubernetes deployment details, and pod logs.
-- Ask AI-assisted questions over scanned AWS infrastructure metadata.
-- Authenticate users with local email/password login, with optional Google OAuth.
+---
 
-## Supported Resources
+## Why InfraPulse?
 
-### AWS
+Cloud consoles show your resources one service and one account at a time, leaving you to piece together how things actually connect. InfraPulse pulls AWS, GCP, Azure, and Kubernetes into a single, self-hosted view and renders the relationships as a graph you can explore — so you can understand your infrastructure at a glance instead of clicking through a dozen console tabs.
 
-- Compute: EC2, Lambda
-- Database and cache: RDS, ElastiCache
-- Storage: S3
-- Networking: VPC, Subnet, Route Table, Transit Gateway, VPC Endpoint, Internet Gateway, NAT Gateway, Elastic IP, DHCP Options, Network ACL, VPN, ELB
-- Security: Secrets Manager, KMS, ACM, WAF
-- Content and API: CloudFront, API Gateway, Route 53
-- Messaging: SNS, SES
+## What it does
 
-### GCP
+InfraPulse is a self-hosted, full-stack app that gives you a live, visual map of your infrastructure.
 
-- Compute: Compute Engine VMs, Cloud Functions, Cloud Run
-- Networking: VPC Networks, Subnetworks, Firewall Rules, Routes, Cloud Routers, Cloud NAT, External IPs
-- Database and cache: Cloud SQL, Memorystore Redis
-- Storage: Cloud Storage
-- Security: KMS Keys, Secret Manager, Cloud Armor
-- Content and API: Load Balancers, Cloud DNS
-- Messaging: Pub/Sub Topics
+- **Connect anywhere** — AWS, GCP, Azure, and Kubernetes clusters (EKS, GKE, AKS, ROSA), using read-only credentials you provide.
+- **Discover resources** — scan accounts and clusters to pull in compute, networking, storage, database, security, and messaging resources.
+- **Visualize dependencies** — see how resources relate to each other as an interactive graph, and drill into any node for details.
+- **Inspect Kubernetes** — view deployment details and stream pod logs.
+- **Ask questions** — query your scanned AWS infrastructure in plain English with optional AI chat.
 
-### Azure
+All credentials are encrypted at rest, and scanned data is cached locally in SQLite — nothing leaves your machine except calls to the cloud providers you connect (and OpenAI, if you enable AI chat).
 
-- Compute: Virtual Machines, Function Apps, App Services
-- Networking: Virtual Networks, Subnets, Network Security Groups, Public IPs, Load Balancers, Application Gateways
-- Database and cache: SQL Servers, Azure Cache for Redis
-- Storage: Storage Accounts
-- Security: Key Vaults
-- Content and API: DNS Zones
-- Messaging: Service Bus Namespaces
+## Tech stack
 
-### Kubernetes
+| Layer    | Technologies |
+|----------|--------------|
+| Frontend | React, Vite, TypeScript, Tailwind CSS, React Flow |
+| Backend  | Node.js, Express, TypeScript, Passport.js, Socket.IO |
+| Data     | SQLite (with SQL migrations) |
+| Cloud    | AWS SDK v3, GCP, Azure, and Kubernetes clients |
+| AI       | OpenAI API (optional) |
 
-- ROSA
-- Amazon EKS
-- Google GKE
-- Azure AKS
-- Deployments
-- StatefulSets
-- DaemonSets
-- Pods
-- Jobs
-- CronJobs
-- Services
-- Ingresses
-- Secrets
-- ConfigMaps
-- PersistentVolumeClaims
-- Cluster Nodes
+## Quick start
 
-## Tech Stack
-
-- Frontend: React, Vite, TypeScript, Tailwind CSS, React Flow
-- Backend: Node.js, Express, TypeScript, Passport.js, Socket.IO
-- Cloud SDKs: AWS SDK v3, Kubernetes client
-- Database: SQLite with SQL migrations
-- AI integration: OpenAI API
-
-## Prerequisites
-
-- Node.js `>=20.19.0 <23`
-- npm
-- AWS credentials with read permissions for the resources you want to scan
-- GCP service account credentials with read permissions for the resources you want to scan
-- Azure service principal credentials with Reader access to the target subscription or resource group
-- Kubernetes API server URL and bearer token for direct ROSA-style cluster connections
-- Optional: Google OAuth credentials for Google login
-- Optional: OpenAI API key for AI chat
-
-Node 22 is recommended for local development.
-
-## Getting Started
-
-Install dependencies from the repository root:
+**Prerequisites:** Node.js `>=20.19.0 <23` (Node 22 recommended) and npm.
 
 ```bash
+# 1. Install dependencies
 npm install
-```
 
-Create a local environment file:
-
-```bash
+# 2. Create your environment file
 cp .env.example .env
+
+# 3. Set the required secrets in .env (see below)
+
+# 4. Run the app
+npm run dev
 ```
 
-Update `.env` as needed:
+Then open **http://localhost:5173**. The backend runs on `http://localhost:3000`, and Vite proxies `/api` and `/socket.io` to it in development.
+
+### Configuration
+
+At minimum, set these in `.env`:
 
 ```env
-PORT=3000
 SESSION_SECRET=replace-with-a-long-random-secret
 CREDENTIAL_ENCRYPTION_KEY=replace-with-a-32-character-or-longer-secret
-CLIENT_URL=http://localhost:5173
+```
 
-# Optional Google OAuth
+Optional features:
+
+```env
+# Google OAuth login
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 
-# Optional AI chat
+# AI chat
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5.4
 ```
 
-Start the backend and frontend:
+## Connecting providers
 
-```bash
-npm run dev
-```
+Connect providers from within the app using **read-only** credentials. Least-privilege is recommended everywhere.
 
-Open the app:
+| Provider | Credentials | Suggested access |
+|----------|-------------|------------------|
+| **AWS** | Access key ID + secret (optional session token for temporary credentials) | Read-only on the services you scan |
+| **GCP** | Service account JSON key | `Viewer` at project scope |
+| **Azure** | Tenant ID, Client ID, Client Secret, Subscription ID | `Reader` at subscription/resource-group scope |
+| **Kubernetes** | API server URL + bearer token, or discovered via cloud credentials (EKS/GKE/AKS) | Read access per cluster RBAC |
 
-```text
-http://localhost:5173
-```
+**Supported resources** span compute, networking, storage, databases & cache, security, content/API, and messaging across all four providers — plus core Kubernetes workloads (Deployments, StatefulSets, DaemonSets, Pods, Jobs, Services, Ingresses, ConfigMaps, Secrets, PVCs, and more).
 
-Default local services:
+## Commands
 
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:3000`
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Run backend + frontend locally |
+| `npm run dev:server` | Run the backend only |
+| `npm run dev:client` | Run the frontend only |
+| `npm run build` | Build both workspaces |
+| `npm run start` | Start the production backend (after build) |
 
-In development, Vite proxies `/api` and `/socket.io` requests to the backend.
+## Data & storage
 
-## Cloud Credentials
+InfraPulse uses SQLite for local persistence. The database is created automatically at `server/infrapulse.db` and migrations are applied on startup. Override the location with `DB_PATH` (full path) or `DATA_DIR` (directory).
 
-### AWS
+> Keep `.env`, database files, API keys, and cloud credentials out of version control.
 
-Use an access key ID and secret access key. Temporary credentials are supported by also providing a session token.
-
-Recommended permissions: read-only permissions for the AWS services you want to scan.
-
-### GCP
-
-Use a service account JSON key.
-
-Recommended role: `Viewer` at project scope.
-
-### Azure
-
-Use an Azure app registration / service principal with:
-
-- Tenant ID
-- Client ID
-- Client Secret
-- Subscription ID
-
-Recommended role: `Reader` at subscription or resource-group scope.
-
-For AKS connections, the same Azure service principal is used to discover clusters and mint Kubernetes API tokens. It must have permission to read AKS metadata and access the target cluster according to the cluster's Azure RBAC / Kubernetes RBAC configuration.
-
-## Database
-
-InfraPulse uses SQLite for local persistence. The server creates the database automatically and applies SQL migrations on startup.
-
-By default, the database is created at:
-
-```text
-server/infrapulse.db
-```
-
-You can override the database location with either:
-
-```env
-DB_PATH=/absolute/path/to/infrapulse.db
-```
-
-or:
-
-```env
-DATA_DIR=/absolute/path/to/data-directory
-```
-
-Do not commit SQLite database files or real environment files.
-
-## Common Commands
-
-```bash
-npm run dev
-```
-
-Run the app locally.
-
-```bash
-npm run dev:server
-```
-
-Run only the backend.
-
-```bash
-npm run dev:client
-```
-
-Run only the frontend.
-
-```bash
-npm run build
-```
-
-Build both workspaces.
-
-```bash
-npm run start
-```
-
-Start the production backend after building.
-
-## Project Structure
+## Project structure
 
 ```text
 .
-├── client/                 # React + Vite frontend
-├── server/                 # Express + TypeScript backend
-├── server/src/db/migrations/ # SQLite schema migrations
-├── package.json            # npm workspace scripts
-└── README.md
+├── client/   # React + Vite frontend
+├── server/   # Express + TypeScript backend (db/, aws/, gcp/, azure/, kubernetes/, chatbot/)
+└── package.json
 ```
-
-## Security Notes
-
-- Cloud and cluster credentials are encrypted before being stored in SQLite.
-- Keep `.env`, database files, API keys, OAuth secrets, and cloud credentials out of git.
-- Use least-privilege AWS and Kubernetes credentials for discovery.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
